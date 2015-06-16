@@ -20,17 +20,14 @@ class RedisServerProtocol(asyncio.Protocol):
         # parsed is an array of [command, *args]
         command = parsed[0].decode().lower()
         try:
-            method = getattr(self, command)
+            method = getattr(self._redis, command)
         except AttributeError:
-            try:
-                method = getattr(self._redis, command)
-            except AttributeError:
-                self.transport.write(
-                    b'-ERR unknow command ' + parsed[0] + b'\r\n'
-                )
-                return
-            except rediserr.CmdNotExistError:
-                return toresp(None)
+            self.transport.write(
+                b'-ERR unknow command ' + parsed[0] + b'\r\n'
+            )
+            return
+        except rediserr.CmdNotExistError:
+            return toresp(None)
         try:
             result = method(*parsed[1:])
         except TypeError:
@@ -42,8 +39,6 @@ class RedisServerProtocol(asyncio.Protocol):
         serialized = toresp(result)
         self.transport.write(serialized)
 
-    def lrange(self, listname, start, stop):
-        return self._redis.lrange(listname, int(start), int(stop))
 
 class WireRedisConverter(object):
     def __init__(self, redis):
@@ -51,6 +46,9 @@ class WireRedisConverter(object):
 
     def __getattr__(self, command):
         return getattr(self._redis, command)
+
+    def lrange(self, listname, start, stop):
+        return self._redis.lrange(listname, int(start), int(stop))
 
 def run(hostname='localhost', port=6379):
     loop = asyncio.get_event_loop()
