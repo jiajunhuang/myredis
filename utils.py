@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
-__author__ = 'jiajun'
+__author__ = 'Jiajun Huang'
 
 import hiredis
 
-def tostr(message):
+def to_str(message):
     reader = hiredis.Reader()
     reader.feed(message)
     return reader.gets()
 
-def toresp(value):
+def to_resp(value):
     if isinstance(value, str):
         return ('+%s' % value).encode() + b'\r\n'
     elif isinstance(value, bool) and value:
@@ -24,7 +24,7 @@ def toresp(value):
     elif isinstance(value, list):
         base = b'*' + str(len(value)).encode() + b'\r\n'
         for item in value:
-            base += toresp(item)
+            base += to_resp(item)
         return base
 
 def to_bytes(x):
@@ -34,10 +34,9 @@ def to_bytes(x):
         return bytes(x)
     if isinstance(x, str):
         return x.encode()
-    return bytes()
 
 if __name__ == '__main__':
     msg = b'+OK\r\n'
     msg2 = b'*3\r\n:3\r\n:2\r\n$5\r\nhello\r\n'
-    print(tostr(msg))
-    print(toresp(msg2))
+    print(to_str(msg))
+    print(to_resp(msg2))

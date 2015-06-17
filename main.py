@@ -2,9 +2,8 @@
 
 import functools
 import asyncio
-from utils import tostr, toresp
+from utils import to_str, to_resp
 import myredis
-import exceptions
 
 class MyRedisProtocol(asyncio.Protocol):
     def __init__(self, redis):
@@ -15,7 +14,7 @@ class MyRedisProtocol(asyncio.Protocol):
         self.transport = transport
 
     def data_received(self, data):
-        arglist = tostr(data)
+        arglist = to_str(data)
         # arglist is an array of [command, *args]
         command = arglist[0].decode().lower()
         try:
@@ -25,8 +24,10 @@ class MyRedisProtocol(asyncio.Protocol):
                 b'-ERR unknow command ' + arglist[0] + b'\r\n'
             )
             return
-        except rediserr.CmdNotExistError:
-            return toresp(None)
+        except NameError:
+            self.transport.write(
+                b'-ERR ' + listname + b' not exists\r\n'
+            )
         result = method(*arglist[1:])
         #try:
             #result = method(*arglist[1:])
@@ -36,11 +37,18 @@ class MyRedisProtocol(asyncio.Protocol):
                 #+ b' need more arguments' + b'\r\n'
             #)
             #return
-        resp_result = toresp(result)
+        resp_result = to_resp(result)
         self.transport.write(resp_result)
 
 
 class RedisWrapper(object):
+    '''RedisWrapper is just a wrapper of RedisDB(). 
+
+    because in python's function, we can't directly change argument's reference 
+    to another object(it will not work after it return). so when it is needed, 
+    we need a wrapper to receive the object return from RedisDB, and change 
+    the reference of the change needed object in wrapper to that.
+    '''
     def __init__(self, redis):
         self._redis = redis
 
@@ -50,12 +58,28 @@ class RedisWrapper(object):
     def lrange(self, listname, start, stop):
         return self._redis.lrange(listname, int(start), int(stop))
 
-    def exists(self, key):
-        realkey = key.decode().lower()
-        if key in self._redis._db:
-            return 1
-        else:
+    def ltrim(self, listname, start, stop):
+        self._redis._db[listname] = self._redis.lrange(listname, 
+                                                   int(start), int(stop))
+        return True
+
+    def lpushx(self, listname, value):
+        try:
+            return self._redis.lpush(listname, value)
+        except KeyError:
             return 0
+
+    def rpushx(self, listname, value):
+        try:
+            return self._redis.rpush(listname, value)
+        except KeyError:
+            return 0
+
+    def lrem(self, listname, count, value):
+        self._redis._db[listname], removed = self._redis.lrem(listname,
+                                                          int(count),
+                                                          value)
+        return removed
 
 def run(hostname='localhost', port=6379):
     loop = asyncio.get_event_loop()
