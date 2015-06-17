@@ -4,7 +4,7 @@ __author__ = 'Jiajun Huang'
 
 import hiredis
 
-def to_str(message):
+def to_arglist(message):
     reader = hiredis.Reader()
     reader.feed(message)
     return reader.gets()

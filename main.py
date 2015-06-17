@@ -2,8 +2,8 @@
 
 import functools
 import asyncio
-from utils import to_str, to_resp
-import myredis
+from utils import to_arglist, to_resp
+import myredis_list as myredis
 
 class MyRedisProtocol(asyncio.Protocol):
     def __init__(self, redis):
@@ -14,7 +14,9 @@ class MyRedisProtocol(asyncio.Protocol):
         self.transport = transport
 
     def data_received(self, data):
-        arglist = to_str(data)
+        arglist = to_arglist(data)
+        if arglist == False:
+            return
         # arglist is an array of [command, *args]
         command = arglist[0].decode().lower()
         try:
