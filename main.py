@@ -6,7 +6,7 @@ from utils import tostr, toresp
 import myredis
 import exceptions
 
-class RedisServerProtocol(asyncio.Protocol):
+class MyRedisProtocol(asyncio.Protocol):
     def __init__(self, redis):
         self._redis = redis
         self.transport = None
@@ -15,32 +15,32 @@ class RedisServerProtocol(asyncio.Protocol):
         self.transport = transport
 
     def data_received(self, data):
-        parsed = tostr(data)
-        print('============', parsed)
-        # parsed is an array of [command, *args]
-        command = parsed[0].decode().lower()
+        arglist = tostr(data)
+        # arglist is an array of [command, *args]
+        command = arglist[0].decode().lower()
         try:
             method = getattr(self._redis, command)
         except AttributeError:
             self.transport.write(
-                b'-ERR unknow command ' + parsed[0] + b'\r\n'
+                b'-ERR unknow command ' + arglist[0] + b'\r\n'
             )
             return
         except rediserr.CmdNotExistError:
             return toresp(None)
-        try:
-            result = method(*parsed[1:])
-        except TypeError:
-            self.transport.write(
-                b'-ERR command ' + parsed[0] 
-                + b' need more arguments' + b'\r\n'
-            )
-            return
-        serialized = toresp(result)
-        self.transport.write(serialized)
+        result = method(*arglist[1:])
+        #try:
+            #result = method(*arglist[1:])
+        #except TypeError:
+            #self.transport.write(
+                #b'-ERR command ' + arglist[0] 
+                #+ b' need more arguments' + b'\r\n'
+            #)
+            #return
+        resp_result = toresp(result)
+        self.transport.write(resp_result)
 
 
-class WireRedisConverter(object):
+class RedisWrapper(object):
     def __init__(self, redis):
         self._redis = redis
 
@@ -50,10 +50,17 @@ class WireRedisConverter(object):
     def lrange(self, listname, start, stop):
         return self._redis.lrange(listname, int(start), int(stop))
 
+    def exists(self, key):
+        realkey = key.decode().lower()
+        if key in self._redis._db:
+            return 1
+        else:
+            return 0
+
 def run(hostname='localhost', port=6379):
     loop = asyncio.get_event_loop()
-    wrapped_redis = WireRedisConverter(myredis.RedisDB())
-    bound_protocol = functools.partial(RedisServerProtocol, wrapped_redis)
+    wrapped_redis = RedisWrapper(myredis.RedisDB())
+    bound_protocol = functools.partial(MyRedisProtocol, wrapped_redis)
     coro = loop.create_server(bound_protocol,
                               hostname, port)
     server = loop.run_until_complete(coro)
