@@ -4,6 +4,7 @@
 __author__ = 'Jiajun Huang'
 
 from collections import deque
+import itertools
 
 class RedisDB(object):
     def __init__(self):

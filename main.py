@@ -3,7 +3,7 @@
 import functools
 import asyncio
 from utils import to_arglist, to_resp
-import myredis_list as myredis
+import myredis_deque as myredis
 
 class MyRedisProtocol(asyncio.Protocol):
     def __init__(self, redis):
