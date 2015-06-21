@@ -10,11 +10,10 @@ from time import sleep
 
 def aof(msgqueue, filename):
     try:
-        print('Child pid: {%d}' % os.getpid())
+        print('aof processs pid: {%d}' % os.getpid())
         with open (filename, 'a') as f:
             while True:
                 msg = msgqueue.get()
-                print('Child Process: I\'ve got a message: {}'.format(str(msg)))
                 f.write(str(msg))
     except KeyboardInterrupt:
         sys.exit()

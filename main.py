@@ -5,8 +5,10 @@ import asyncio
 from utils import to_arglist, to_resp
 import myredis_deque as myredis
 from aof import startaof
+from rdbtools3 import parse_rdb_stream
 
-filename = 'redis.rds'
+filename = 'appendonly.aof'
+dumpfilepath = 'dump.rdb'
 
 class MyRedisProtocol(asyncio.Protocol):
     def __init__(self, redis, msgqueue):
@@ -27,22 +29,22 @@ class MyRedisProtocol(asyncio.Protocol):
             method = getattr(self._redis, command)
         except AttributeError:
             self.transport.write(
-                    b'-ERR unknow command ' + arglist[0] + b'\r\n'
-                    )
+                b'-ERR unknow command ' + arglist[0] + b'\r\n'
+            )
             return
         except NameError:
             self.transport.write(
-                    b'-ERR ' + listname + b' not exists\r\n'
-                    )
+                b'-ERR ' + listname + b' not exists\r\n'
+            )
         result = method(*arglist[1:])
         #try:
-            #result = method(*arglist[1:])
+        #result = method(*arglist[1:])
         #except TypeError:
-            #self.transport.write(
-                #b'-ERR command ' + arglist[0] 
-                #+ b' need more arguments' + b'\r\n'
-            #)
-            #return
+        #self.transport.write(
+        #b'-ERR command ' + arglist[0] 
+        #+ b' need more arguments' + b'\r\n'
+        #)
+        #return
         # command execute successfully, send it to AOF
         self.msgqueue.put(data.decode())
         resp_result = to_resp(result)
@@ -57,8 +59,9 @@ class RedisWrapper(object):
     we need a wrapper to receive the object return from RedisDB, and change 
     the reference of the change needed object in wrapper to that.
     '''
-    def __init__(self, redis):
+    def __init__(self, redis, dumpfilepath):
         self._redis = redis
+        self.readdump(dumpfilepath)
 
     def __getattr__(self, command):
         return getattr(self._redis, command)
@@ -68,7 +71,7 @@ class RedisWrapper(object):
 
     def ltrim(self, listname, start, stop):
         self._redis._db[listname] = self._redis.lrange(listname, 
-                int(start), int(stop))
+                                                       int(start), int(stop))
         return True
 
     def lpushx(self, listname, value):
@@ -85,9 +88,20 @@ class RedisWrapper(object):
 
     def lrem(self, listname, count, value):
         self._redis._db[listname], removed = self._redis.lrem(listname,
-                int(count),
-                value)
+                                                              int(count),
+                                                              value)
         return removed
+
+    def readdump(self, filepath):
+        try:
+            with open(filepath, 'rb') as f:
+                for item in parse_rdb_stream(f):
+                    if isinstance(item.value, list):
+                        self._redis.rpush(item.key, *item.value)
+                    else:
+                        pass # ignore other data structures for now.
+        except FileNotFoundError:
+            print('the given file does not exist!')
 
 def run(hostname='localhost', port=6379):
     # get proc_aof and message queue
@@ -95,11 +109,11 @@ def run(hostname='localhost', port=6379):
 
     # create asynchronous io loop
     loop = asyncio.get_event_loop()
-    wrapped_redis = RedisWrapper(myredis.RedisDB())
+    wrapped_redis = RedisWrapper(myredis.RedisDB(), dumpfilepath)
     bound_protocol = functools.partial(MyRedisProtocol, 
-            wrapped_redis, msgqueue)
+                                       wrapped_redis, msgqueue)
     coro = loop.create_server(bound_protocol,
-            hostname, port)
+                              hostname, port)
     server = loop.run_until_complete(coro)
     print("Listening on port {}".format(port))
     try:
