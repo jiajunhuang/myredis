@@ -1,1 +1,3 @@
 __pycache__
+appendonly.aof
+dump.rdb

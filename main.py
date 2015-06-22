@@ -3,7 +3,7 @@
 import functools
 import asyncio
 from utils import to_arglist, to_resp
-import myredis_deque as myredis
+import myredis as myredis
 from aof import startaof
 from rdbtools3 import parse_rdb_stream
 

@@ -118,8 +118,9 @@ class RedisDB(object):
 
     def set(self, key, value):
         self._db[key] = value
+        return True
 
-    def del(self, *keys):
+    def del_key(self, *keys):
         count = 0
         for key in keys:
             try:
@@ -128,3 +129,15 @@ class RedisDB(object):
             except KeyError:
                 pass
         return count
+
+    # unimplement methods
+    def dump(self, key):
+        pass
+    def keys(self, pattern):
+        pass # TODO
+    def migrate(self, host, port, key, destination-d, timeout, 
+                copy=True, replace=False):
+        pass
+    def move(key, db):
+        pass
+    # and all command with survival time
