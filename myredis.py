@@ -5,6 +5,7 @@ __author__ = 'Jiajun Huang'
 
 from collections import deque
 import itertools
+import re
 
 class RedisDB(object):
     def __init__(self):
@@ -130,14 +131,38 @@ class RedisDB(object):
                 pass
         return count
 
+    def keys(self, pattern):
+        pat = re.compile(pattern.decode())
+        result = [i for i in self._db.keys() if pat.match(i.decode())]
+        if result:
+            return result
+        else:
+            return None
+
     # unimplement methods
     def dump(self, key):
         pass
-    def keys(self, pattern):
-        pass # TODO
-    def migrate(self, host, port, key, destination-d, timeout, 
+    def migrate(self, host, port, key, destination, timeout, 
                 copy=True, replace=False):
         pass
     def move(key, db):
         pass
     # and all command with survival time
+
+    # operations on string
+    def str_append(self, key, value):
+        if key in self._db:
+            self._db[key] += value
+        else:
+            self._db[key] = value
+        return len(self._db[key])
+
+    def bitcount(self):
+        pass
+    
+    def bitop(self):
+        pass
+
+    # ping
+    def ping(self):
+        return "PONG"

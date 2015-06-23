@@ -25,6 +25,12 @@ class MyRedisProtocol(asyncio.Protocol):
             return
         # arglist is an array of [command, *args]
         command = arglist[0].decode().lower()
+
+        # handle some methods who's name duplicate with keywords in python.
+        if command == 'del':
+            method = self._redis.del_key
+        elif command == 'append':
+            method = self._redis.str_append
         try:
             method = getattr(self._redis, command)
         except AttributeError:
