@@ -1,5 +1,7 @@
 # myredis
 
+## deprecated
+
 fake redis implement in python3.
 
 usage:
